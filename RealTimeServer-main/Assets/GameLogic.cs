@@ -6,7 +6,7 @@ public class GameLogic : MonoBehaviour
 {
     float durationUntilNextBalloon;
 
-    LinkedList<int> connetedClinetIDs;
+    LinkedList<Playerinfo> ActiviePlayers;
 
     int lastUsedID;
 
@@ -14,7 +14,7 @@ public class GameLogic : MonoBehaviour
 
     void Start()
     {
-        connetedClinetIDs = new LinkedList<int>();
+        ActiviePlayers = new LinkedList<Playerinfo>();
         NetworkedServerProcessing.SetGameLogic(this);
         activeballoons = new LinkedList<Ballooninfo>();
     }
@@ -40,8 +40,8 @@ public class GameLogic : MonoBehaviour
 
             string msg = ServerToClientSignifiers.spawnBallon +","+ screenPositionXPercent + "," + screenPositionYPercent + "," + lastUsedID ;
 
-            foreach (int cid in connetedClinetIDs)
-              NetworkedServerProcessing.SendMessageToClient(msg, cid);
+            foreach (Playerinfo pi in ActiviePlayers)
+              NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
 
             activeballoons.AddLast(new Ballooninfo(screenPositionXPercent, screenPositionYPercent, lastUsedID));
         }
@@ -49,17 +49,29 @@ public class GameLogic : MonoBehaviour
 
     public void AddClientConnection( int id) 
     {
-        connetedClinetIDs.AddLast(id);
+        ActiviePlayers.AddLast( new Playerinfo (0,id));
         foreach (Ballooninfo Balloon in activeballoons) 
         {
             string msg = ServerToClientSignifiers.spawnBallon + "," + Balloon.percentX + "," + Balloon.percentY + "," + Balloon.id;
 
             NetworkedServerProcessing.SendMessageToClient(msg, id);
         }
+
+        // Update all the Client on ActiviePlayer Changes
+        SendActiviePlayersToAllClient();
     }
     public void RemoveClientConnection(int id)
     {
-        connetedClinetIDs.Remove(id);
+        //PlayersInfos.Remove(id);
+        Playerinfo SeachPlayer = FindPlayerwithID(id);
+
+        if (SeachPlayer != null) 
+        {
+            ActiviePlayers.Remove(SeachPlayer);
+        }
+
+        // Update all the Client on ActiviePlayer Changes
+        SendActiviePlayersToAllClient();
     }
 
     public void PrcossBalloonClick(int BalloonID) 
@@ -70,8 +82,8 @@ public class GameLogic : MonoBehaviour
         {
             activeballoons.Remove(bi);
             string msg = ServerToClientSignifiers.BalloonPopped+","+ BalloonID;
-            foreach(int cid in connetedClinetIDs)
-            NetworkedServerProcessing.SendMessageToClient(msg, cid);
+            foreach(Playerinfo pi in ActiviePlayers)
+            NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
         }
     }
     private Ballooninfo FindBalloonwithID (int BalloonID)
@@ -84,6 +96,45 @@ public class GameLogic : MonoBehaviour
             }
         }
         return null;
+    }
+
+    private Playerinfo FindPlayerwithID(int PlayerID)
+    {
+        foreach (Playerinfo pi in ActiviePlayers)
+        {
+            if (pi.connetedClinetID == PlayerID)
+            {
+                return pi;
+            }
+        }
+        return null;
+    }
+
+    public void GivePlayerPoints(int id)
+    {
+        Playerinfo SearchPlayerForPoints = FindPlayerwithID(id);
+
+        if (SearchPlayerForPoints != null)
+        {
+            SearchPlayerForPoints.Score = SearchPlayerForPoints.Score + 5;
+        }
+        // Update all the Client on ActiviePlayer Changes
+        SendActiviePlayersToAllClient();
+    }
+
+
+    private void SendActiviePlayersToAllClient()
+    {
+        
+        foreach (Playerinfo PlayerCid in ActiviePlayers)
+        {
+            NetworkedServerProcessing.SendMessageToClient(ServerToClientSignifiers.RemoveActiviePlayers +",", PlayerCid.connetedClinetID);
+            foreach (Playerinfo playerinfo in ActiviePlayers) 
+            {
+                string msg = ServerToClientSignifiers.ActiviePlayers + "," + playerinfo.connetedClinetID + "," + playerinfo.Score;
+                NetworkedServerProcessing.SendMessageToClient(msg, PlayerCid.connetedClinetID); 
+            }
+        }
     }
 }
 
@@ -103,5 +154,22 @@ public class Ballooninfo
         percentY = PercentY;
         id = ID;
 
+    }
+}
+
+
+public class Playerinfo
+{
+    
+
+    public int Score;
+
+    public int connetedClinetID;
+
+
+    public Playerinfo( int score, int ID)
+    {
+        Score = score;
+        connetedClinetID = ID;
     }
 }

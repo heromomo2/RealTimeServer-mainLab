@@ -20,6 +20,7 @@ static public class NetworkedServerProcessing
         else if (signifier == ClientToServerSignifiers.BalloonClicked)
         {
             gameLogic.PrcossBalloonClick(int.Parse(csv[1]));
+            gameLogic.GivePlayerPoints(clientID);
         }
         //else if (signifier == ClientToServerSignifiers.asd)
         // {
@@ -87,6 +88,10 @@ static public class ServerToClientSignifiers
     public const int spawnBallon = 2;
 
     public const int BalloonPopped = 3;
+
+    public const int ActiviePlayers = 4;
+
+    public const int RemoveActiviePlayers = 5;
 }
 
 #endregion
