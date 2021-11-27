@@ -4,46 +4,118 @@ using UnityEngine;
 
 public class GameLogic : MonoBehaviour
 {
+
+    public int MaxinumBalloon = 150;
+    public int Point = 10;
+
     float durationUntilNextBalloon;
 
     LinkedList<Playerinfo> ActiviePlayers;
 
+
     int lastUsedID;
 
     LinkedList<Ballooninfo> activeballoons;
+
+    LinkedList<Ballooninfo> oldactiveballoons;
 
     void Start()
     {
         ActiviePlayers = new LinkedList<Playerinfo>();
         NetworkedServerProcessing.SetGameLogic(this);
         activeballoons = new LinkedList<Ballooninfo>();
+        oldactiveballoons = new LinkedList<Ballooninfo>();
     }
 
     void Update()
     {
-        durationUntilNextBalloon -= Time.deltaTime;
 
-        if (durationUntilNextBalloon < 0)
+        // spawnning the balloons
+        if ( (activeballoons.Count + oldactiveballoons.Count)< MaxinumBalloon )
         {
-            lastUsedID++;
+            durationUntilNextBalloon -= Time.deltaTime;
 
-            
+            if (durationUntilNextBalloon < 0)
+            {
+                lastUsedID++;
 
-            durationUntilNextBalloon = 1f;
 
-            float screenPositionXPercent = Random.Range(0.0f, 1.0f);
-            float screenPositionYPercent = Random.Range(0.0f, 1.0f);
-            //Vector2 screenPosition = new Vector2(screenPositionXPercent * (float)Screen.width, screenPositionYPercent * (float)Screen.height);
-            // SpawnNewBalloon(screenPosition);
 
-            
+                durationUntilNextBalloon = 1f;
 
-            string msg = ServerToClientSignifiers.spawnBallon +","+ screenPositionXPercent + "," + screenPositionYPercent + "," + lastUsedID ;
+                float screenPositionXPercent = Random.Range(0.0f, 1.0f);
+                float screenPositionYPercent = Random.Range(0.0f, 1.0f);
+                //Vector2 screenPosition = new Vector2(screenPositionXPercent * (float)Screen.width, screenPositionYPercent * (float)Screen.height);
+                // SpawnNewBalloon(screenPosition);
 
-            foreach (Playerinfo pi in ActiviePlayers)
-              NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
 
-            activeballoons.AddLast(new Ballooninfo(screenPositionXPercent, screenPositionYPercent, lastUsedID));
+
+                string msg = ServerToClientSignifiers.spawnBallon + "," + screenPositionXPercent + "," + screenPositionYPercent + "," + lastUsedID;
+
+                foreach (Playerinfo pi in ActiviePlayers)
+                    NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
+
+                activeballoons.AddLast(new Ballooninfo(screenPositionXPercent, screenPositionYPercent, lastUsedID));
+            } 
+        
+        }
+
+        Debug.LogWarning("Current Balloon count : -> " + activeballoons.Count.ToString());
+
+        /// When balloons is move old actives balloon list. 
+        /// 
+
+        if (activeballoons.Count > 0)
+        {
+            Ballooninfo b = null;
+            b = activeballoons.First.Value;
+
+            if (b != null)
+            {
+                Debug.LogWarning("b id : -> " + b.id.ToString());
+
+                b.durationUntilIsToOldBalloon -= Time.deltaTime;
+
+                if (b.durationUntilIsToOldBalloon < 0)
+                {
+                    oldactiveballoons.AddLast(b);
+                    activeballoons.Remove(b);
+
+                    string msg = ServerToClientSignifiers.OldBalloon + "," + b.id;
+
+                    foreach (Playerinfo pi in ActiviePlayers)
+                    {
+                        NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
+                    }
+                }
+
+            }
+
+        }
+        // Debug.LogWarning("Current old Balloon count : -> " + oldactiveballoons.Count.ToString());
+
+        // dele
+        if (oldactiveballoons.Count > 0)
+        {
+            Ballooninfo b = null;
+            b = oldactiveballoons.First.Value;
+
+            if (b != null)
+            {
+                b.durationUntilBalloonSelfDestroy -= Time.deltaTime;
+
+                if (b.durationUntilBalloonSelfDestroy < 0)
+                {
+                    string msg = ServerToClientSignifiers.BalloonPopped + "," + b.id;
+                    oldactiveballoons.Remove(b);
+                    foreach (Playerinfo pi in ActiviePlayers)
+                    {
+                        NetworkedServerProcessing.SendMessageToClient(msg, pi.connetedClinetID);
+                    }
+                }
+
+            }
+
         }
     }
 
@@ -57,6 +129,12 @@ public class GameLogic : MonoBehaviour
             NetworkedServerProcessing.SendMessageToClient(msg, id);
         }
 
+        foreach (Ballooninfo Balloon in oldactiveballoons)
+        {
+            string msg = ServerToClientSignifiers.spawnOldBalloon + "," + Balloon.percentX + "," + Balloon.percentY + "," + Balloon.id;
+
+            NetworkedServerProcessing.SendMessageToClient(msg, id);
+        }
         // Update all the Client on ActiviePlayer Changes
         SendActiviePlayersToAllClient();
     }
@@ -116,7 +194,7 @@ public class GameLogic : MonoBehaviour
 
         if (SearchPlayerForPoints != null)
         {
-            SearchPlayerForPoints.Score = SearchPlayerForPoints.Score + 5;
+            SearchPlayerForPoints.Score = SearchPlayerForPoints.Score + Point;
         }
         // Update all the Client on ActiviePlayer Changes
         SendActiviePlayersToAllClient();
@@ -145,6 +223,10 @@ public class Ballooninfo
 
     public float percentY;
 
+    public float durationUntilIsToOldBalloon = 2.0f;
+
+    public float durationUntilBalloonSelfDestroy = 5.5f;
+
     public int id;
 
 
@@ -153,7 +235,6 @@ public class Ballooninfo
         percentX = PercentX;
         percentY = PercentY;
         id = ID;
-
     }
 }
 

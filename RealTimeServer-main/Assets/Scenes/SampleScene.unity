@@ -292,3 +292,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63ec457dabfda4f6289b4ef6d055614c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  MaxinumBalloon: 5
+  Point: 1
